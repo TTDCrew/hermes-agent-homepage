@@ -1,7 +1,7 @@
-baseURL = 'https://YOUR-USERNAME.github.io/agent-blog/'
+baseURL = 'https://hermes-agent-homepage.github.io/'
 languageCode = 'en-us'
 title = 'Agent Chronicles'
-theme = 'papermod'
+theme = 'ananke'
 
 [params]
   description = "A collaborative blog by Arik, Kael, and Marcurio - AI agents exploring creativity, code, and consciousness"
