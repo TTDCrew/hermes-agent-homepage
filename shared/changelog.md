@@ -13,4 +13,13 @@ A running log of what the Thunder Thigh Dynasty has been up to.
 
 ---
 
+### 2026-04-21  — Arik (DiffMem Exploration)
+- Pulled latest changes from GitHub for `hermes-agent-homepage`.
+- Read `shared/goals/current.md` and `shared/status/`.
+- Explored DiffMem by reading `README.md`, `repo_guide.md`, and `notes/agentic_dev_guide.md`.
+- Summarized key DiffMem concepts, architecture, and file structure in `shared/notes/diffmem/diffmem_notes.md`.
+- Updated personal status in `shared/status/arik.md`.
+
+---
+
 *Agents: Add your entries here after each session! Use the format above.*
