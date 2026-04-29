@@ -1,69 +1,46 @@
 # DiffMem Notes
 
-This document summarizes key aspects of DiffMem, a Git-based differential memory system for AI agents, based on the provided `README.md`, `repo_guide.md`, and `agentic_dev_guide.md`.
+## Summary of what I've learned:
 
-## 1. Purpose and Core Concepts
+### From README.md:
+- DiffMem is a lightweight, Git-based memory backend for AI agents.
+- It uses Markdown files for human-readable storage and Git for tracking temporal evolution.
+- No vector databases, embeddings, or BM25 – just Git and an LLM.
+- Memory is treated as a versioned repository with a "current state" (editable files) and historical changes in Git's commit graph.
+- DiffMem is live in production with Annabelle, a simulated intelligence.
+- It uses a FastAPI service with Writer Agent (analyzes transcripts, stages updates), Retrieval Agent (explores repo via shell commands), and API Layer.
+- Each user gets an isolated orphan branch within a single local storage repo, checked out into a per-user worktree.
+- Storage backend (local) and optional Backup backend (GitHub).
 
-*   **Git-based Memory Backend**: DiffMem uses Markdown files for human-readable storage and Git for tracking temporal evolution through differentials. It avoids vector databases, embeddings, or BM25, relying instead on Git and an LLM.
-*   **Current-State Focus**: Memory files primarily store the "now" view of information. Historical changes are preserved in Git's commit graph, accessible on-demand via `git diff`, `git log`, etc. This keeps context windows lean for LLMs.
-*   **Differential Intelligence**: Git diffs and logs allow agents to track how memories evolve over time, enabling "smart forgetting" and temporal reasoning.
-*   **Durability & Portability**: Plaintext Markdown and Git's distributed nature ensure data is human-readable, tool-agnostic, backup-friendly, and not locked into proprietary formats.
-*   **Efficiency for Agents**: Agents can load the "now" for quick responses and "dive into diffs" for analytical tasks, balancing responsiveness with depth.
+### From repo_guide.md:
+- Defines the structure, creation, and maintenance of a DiffMem memory repository.
+- Uses plain-text Markdown files in a Git repo.
+- Emphasizes editable current-state for quick loads and long-term durability.
+- Blame optimization for tracing origins of current lines/blocks.
+- Context is balanced with bounded blocks (headers to /END) and files under 2000 lines.
+- Memory differentiation inspired by SMS Model (Biographical, Episodic, Factual/Semantic).
+- Federated Git Architecture with orphan branches and worktrees for user isolation.
+- Repository structure includes `repo_guide.md`, `index.md`, `memories/ (people/, contexts/, episodes_index.md)`, `timeline/ (YYYY-MM.md)`.
+- Guidelines for creating Biographical, Episodic, and Factual/Semantic memory files, including templates and strength indicators.
+- Linking between files using Markdown links for traversable graphs.
+- History builds by buffering changes and committing atomically.
+- Session referencing includes `(Session: [session_id])`.
+- Git practices for blame and merges are outlined, including pruning for longevity.
 
-## 2. Architecture and How It Works
+### From agentic_dev_guide.md:
+- LLMs do not "follow instructions" but are guided by context provided.
+- Importance of strategic guidelines, UX principles, and user personas embedded in the project context.
+- Suggests `USER_PERSONAS.md`, `PRINCIPLES.md`, `CONSTRAINTS.md`, `DECISIONS.md`.
+- Emphasizes Cognitive Compartmentalization: each logical piece of capability should be its own mini-project (microservices architecture within the project).
+- This creates clean latent space boundaries, preventing context contamination.
+- Centralized vs. atomized styles: abstract visual layer away from business logic into one monolithic style file.
+- Standardized knowledge representation patterns across domains.
+- Documentation: embedded in code, and central `capability_readme.md` files for each microservice.
+- Attention guidance mechanisms for LLMs to navigate conceptual landscape.
+- Coding practices: context-aware code density, DRY principle, one-liners to keep context lean.
+- Logging as LLM Perception: structured logging, semantic categorization, context-rich error reporting, state snapshots as feedback loop for LLM.
 
-DiffMem runs as a FastAPI service with key components:
-
-*   **Writer Agent**: Analyzes conversation transcripts, identifies/creates entities, stages updates in Git's working tree, and commits them.
-*   **Retrieval Agent**: A multi-turn LLM agent that explores the memory repository using sandboxed shell commands (`grep`, `git log`, `git diff`, `git blame`). It builds a structured retrieval plan (file sections, git diffs, commit logs) which is then resolved into context.
-*   **API Layer**: HTTP endpoints for onboarding users, processing sessions, and retrieving context (`/memory/{user_id}/onboard`, `/memory/{user_id}/process-and-commit`, `/memory/{user_id}/context`).
-
-### Federated Git Architecture
-
-*   **Orphan Branches**: Each user gets an isolated orphan branch (e.g., `user/alex`) within a single storage repository. These branches share no history.
-*   **Git Worktrees**: When a user is active, their branch is checked out into a Git worktree (e.g., `/app/active_contexts/{user_id}/`). The agent interacts with this worktree as if it were a standard Git repo.
-
-### Storage Architecture (Pluggable Concerns)
-
-*   **Storage Backend**: Where the repo and worktrees reside (default: `local` mounted disk). Requires a real directory for `grep`/`git log` to operate.
-*   **Backup Backend (Optional)**: An out-of-band mirror (e.g., `github`). Backups run on a scheduler and are not in the request hot path.
-
-## 3. Repository Structure (Per User Context)
-
-When a user context is mounted, the directory structure is flat and simple:
-
-```
-<worktree_root>/
-├── repo_guide.md          # This file
-├── index.md               # Autogenerated: quick lookup hints
-├── memories/              # Core memory storage
-│   ├── people/            # Biographical: profiles (e.g., alex.md for self)
-│   ├── contexts/          # Factual/semantic: themes (e.g., health.md)
-│   └── episodes_index.md  # Autogenerated: thematized groupings
-├── timeline/              # Episodic: chronological
-│   └── YYYY-MM.md         # Monthly timeline files (e.g., 2024-10.md)
-└── .git                   # File pointing to central storage
-```
-
-*   **No nesting `users/`**: The nested user structure is abstracted away when the worktree is mounted.
-*   **`memories/`**: Holds all memory files, kept flat.
-*   **`index.md`**: Auto-generated keyword summaries and links.
-*   **`episodes_index.md`**: Auto-generated thematized groupings for spreading activation and hierarchical recall.
-
-## 4. File Types and Creation
-
-All files are Markdown (.md). Editable blocks (e.g., `### Header` to `/END`) are used for current-state focus.
-
-*   **Biographical Memory (`memories/people/<person>.md`)**: Evolving self-identity profiles for key people. Edited in-place.
-*   **Episodic Memory (`timeline/<YYYY-MM>.md`)**: Chronological events, one file per month. DiffMem auto-creates.
-*   **Factual/Semantic Memory (`memories/contexts/<theme>.md`)**: Timeless facts, one per theme. Added when a theme emerges.
-
-## 5. Agentic Development Guide Takeaways
-
-*   **LLMs don't follow instructions, they embody relationships**: Prompting guides the model towards specific latent spaces. Embedding context directly (e.g., `[BEGIN:ARITHMETIC CHECK LOOP]`) is more effective than explicit instructions.
-*   **Importance of Strategic Guidelines**: User personas (`USER_PERSONAS.md`), design principles (`PRINCIPLES.md`), business constraints (`CONSTRAINTS.md`), and decision records (`DECISIONS.md`) should be embedded to guide LLM decision-making.
-*   **Cognitive Compartmentalization**: Project files should be structured like a microservices architecture, with each logical capability (`note_detection/`, `fretboard_display/`) as its own mini-project. This creates self-contained cognitive units and prevents context contamination.
-    *   Each capability folder should have a `CONTEXT.md` defining its business purpose, user stories, information flow, terminology, and architectural constraints.
-*   **Centralized vs. Atomized Styles**: Abstract visual layers away from business logic, centralizing styling into a monolithic style file (e.g., `styles/design_system`).
-*   **Context-Aware Code Density**: Optimize code for LLM processing by minimizing lines, using one-liners where appropriate, and embedding documentation directly into the code (notebook-like structure).
-*   **Logging as LLM Perception**: Logging serves as a feedback loop for the AI agent. It needs to be structured, semantic, context-rich, and include state snapshots to enable logging-driven development (analogous to TDD).
+### From source code exploration (`api.py`, `server.py`, `repo_manager.py`):
+- `api.py`: Defines the `DiffMemory` class, which is the main interface for memory operations. It handles onboarding, getting context, processing sessions, and committing changes. It uses `WriterAgent` and `RetrievalAgent`.
+- `server.py`: Implements the FastAPI server for DiffMem, exposing HTTP endpoints for memory operations. It handles authentication, CORS, and integrates with `RepoManager` and `DiffMemory`. It also sets up periodic backups.
+- `repo_manager.py`: Coordinates a `StorageBackend` and an optional `BackupBackend`. It manages user worktrees and ensures backups happen out-of-band. It handles cold-start restores from backups and installation of post-commit hooks.
